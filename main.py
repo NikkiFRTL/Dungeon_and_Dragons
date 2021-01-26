@@ -3,6 +3,8 @@ import sys
 from settings import Settings
 from hero import Hero
 from fireball import Fireball
+from crystal import Crystal
+from random import randint
 
 
 class DungeonAndDragons:
@@ -14,6 +16,9 @@ class DungeonAndDragons:
         self.screen = pygame.display.set_mode((self.settings.screen_width, self.settings.screen_height))
         self.hero = Hero(self)
         self.fireballs = pygame.sprite.Group()
+        self.crystals = pygame.sprite.Group()
+        self._create_crystals()  # TODO Сделать так, чтобы повялялись новые кристаллы когда все пять фаерболов будет
+        # выпущено в дракона
 
     def run_game(self):
         while True:
@@ -72,6 +77,18 @@ class DungeonAndDragons:
             if fireball.rect.left > self.screen.get_rect().right:
                 self.fireballs.remove(fireball)
 
+    def _create_crystals(self):
+
+        for row_number in range(1):
+            for crystal_number in range(5):
+                self._create_cristal()
+
+    def _create_cristal(self):
+        crystal = Crystal(self)
+        crystal.rect.x = randint(50, 1200)
+        crystal.rect.y = randint(50, 800)
+        self.crystals.add(crystal)
+
     def _update_screen(self):
         self.screen.fill(self.settings.background_color)
 
@@ -79,6 +96,8 @@ class DungeonAndDragons:
 
         for fireball in self.fireballs.sprites():
             fireball.blit_fireball()
+
+        self.crystals.draw(self.screen)
 
         pygame.display.flip()
 
