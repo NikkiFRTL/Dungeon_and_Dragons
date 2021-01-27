@@ -5,6 +5,7 @@ from hero import Hero
 from fireball import Fireball
 from crystal import Crystal
 from random import randint
+from dragon import Dragon
 
 
 class DungeonAndDragons:
@@ -15,8 +16,10 @@ class DungeonAndDragons:
         self.settings = Settings()
         self.screen = pygame.display.set_mode((self.settings.screen_width, self.settings.screen_height))
         self.hero = Hero(self)
+        self.dragon = Dragon(self)
         self.fireballs = pygame.sprite.Group()
         self.crystals = pygame.sprite.Group()
+        self.dragons = pygame.sprite.Group()
         self._create_crystals()  # TODO Сделать так, чтобы повялялись новые кристаллы когда все пять фаерболов будет
         # выпущено в дракона
 
@@ -25,6 +28,7 @@ class DungeonAndDragons:
             self._check_events()
             self.hero.update()
             self._update_fireballs()
+            self._update_dragon()
             self._update_screen()
 
     def _check_events(self):
@@ -74,8 +78,16 @@ class DungeonAndDragons:
     def _update_fireballs(self):
         self.fireballs.update()
         for fireball in self.fireballs.copy():
-            if fireball.rect.left > self.screen.get_rect().right:
+            if fireball.rect.left >= self.screen.get_rect().right:
                 self.fireballs.remove(fireball)
+        self._check_fireball_dragon_collision()
+
+    def _check_fireball_dragon_collision(self):  # TODO Как в примере с пришельцами(нужен ли спрайт для дракона?)
+        collision_fireball_dragon = pygame.sprite.groupcollide(self.fireballs, self.dragons, False, True)
+        if not self.dragons:
+            self.fireballs.empty()
+            dragon = Dragon(self)
+            self.dragons.add(dragon)
 
     def _create_crystals(self):
 
@@ -89,10 +101,21 @@ class DungeonAndDragons:
         crystal.rect.y = randint(50, 800)
         self.crystals.add(crystal)
 
+    def _check_dragon_edges(self):
+        if self.dragon.check_edges():
+            self.dragon.x -= self.settings.dragon_drop_speed
+            self.settings.dragon_direction *= -1
+
+    def _update_dragon(self):
+        self._check_dragon_edges()
+        self.dragon.update()
+
     def _update_screen(self):
         self.screen.fill(self.settings.background_color)
 
         self.hero.blit_hero()
+
+        self.dragon.blit_dragon()
 
         for fireball in self.fireballs.sprites():
             fireball.blit_fireball()
