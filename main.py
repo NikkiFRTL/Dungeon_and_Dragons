@@ -10,6 +10,7 @@ from dragon import Dragon
 from snowball import Snowball
 from game_stats import GameStats
 from button import Button
+from scoreboard import Scoreboard
 
 
 class DungeonAndDragons:
@@ -30,6 +31,7 @@ class DungeonAndDragons:
         # выпущено в дракона
         # Создание кнопки Play
         self.play_button = Button(self, 'Play')
+        self.scoreboard = Scoreboard(self)
 
     def run_game(self):
         """
@@ -43,6 +45,7 @@ class DungeonAndDragons:
                 self._update_snowballs()
                 self._update_fireballs()
                 self._update_dragon()
+                self._update_crystals()
             self._update_screen()
 
     def _check_events(self):
@@ -61,9 +64,25 @@ class DungeonAndDragons:
         """
         Запускает новую игру при нажатии кнопки Play
         """
-        # Проверяет находится ли точка щелчка в пределах прямоугольника Play
-        if self.play_button.rect.collidepoint(mouse_pos):
+        # Проверяет находится ли точка щелчка в пределах прямоугольника
+        # и отмена реакции клика по квадрату, если игра активна
+        mouse_on_play = self.play_button.rect.collidepoint(mouse_pos)
+        if mouse_on_play and not self.stats.game_active:
+            # Сброс игровой статистики
+            self.stats.reset_stats()
             self.stats.game_active = True
+
+            # Очистка всех списков спрайтов
+            self.fireballs.empty()
+            self.snowballs.empty()
+            self.crystals.empty()
+
+            # Создание и центрирование объектов заного
+            self._create_crystals()
+            self.dragon.center_dragon()
+            self.hero.center_hero()
+            self.scoreboard.prep_score()
+            self.scoreboard.prep_lives()
 
     def _check_keydown_events(self, event):
         """
@@ -79,8 +98,6 @@ class DungeonAndDragons:
             self.hero.moving_down = True
         elif event.key == pygame.K_q:
             sys.exit()
-        elif event.key == pygame.K_f:
-            self.release_fireball()
         elif event.key == pygame.K_SPACE:
             self.release_snowball()
 
@@ -98,9 +115,10 @@ class DungeonAndDragons:
             self.hero.moving_down = False
 
     def release_snowball(self):
-        if len(self.snowballs) < self.settings.snowball_allowed:
+        if len(self.snowballs) < self.settings.snowball_allowed and self.settings.crystals_stack == 3:
             new_snowball = Snowball(self)
             self.snowballs.add(new_snowball)
+            self.settings.crystals_stack = 0
 
     def _update_snowballs(self):
         self.snowballs.update()
@@ -113,8 +131,9 @@ class DungeonAndDragons:
         """
         Обработка коллизий снежных шаров и дракона
         """
-        if pygame.sprite.spritecollideany(self.dragon, self.snowballs):
-            self._hero_hit()
+        collision = pygame.sprite.spritecollideany(self.dragon, self.snowballs)
+        if collision:
+            self._dragon_hit()
 
     def release_fireball(self):
         if len(self.fireballs) < self.settings.fireballs_allowed:
@@ -144,17 +163,35 @@ class DungeonAndDragons:
         if pygame.sprite.spritecollideany(self.hero, self.fireballs):
             self._hero_hit()
 
+    def _update_crystals(self):
+        self.crystals.update()
+        self._check_hero_crystal_collision()
+        if not self.crystals and self.settings.crystals_stack == 0:
+            self._create_crystals()
+
     def _create_crystals(self):
-
         for row_number in range(1):
-            for crystal_number in range(5):
-                self._create_cristal()
+            for crystal_number in range(self.settings.crystals_allowed):
+                self._create_crystal()
 
-    def _create_cristal(self):
+    def _create_crystal(self):
         crystal = Crystal(self)
         crystal.rect.x = randint(50, 1200)
         crystal.rect.y = randint(50, 800)
+        if pygame.sprite.collide_rect(self.hero, crystal):
+            crystal.rect.x = randint(50, 1200)
+            crystal.rect.y = randint(50, 800)
         self.crystals.add(crystal)
+
+    def _check_hero_crystal_collision(self):
+        """
+        Обработка коллизий героя и кристаллов
+        """
+        for crystal in self.crystals:
+            hero_got_crystal = pygame.sprite.collide_rect(self.hero, crystal)
+            if hero_got_crystal:
+                self.settings.crystals_stack += 1
+                self.crystals.remove(crystal)
 
     def _check_dragon_edges(self):
         if self.dragon.check_edges():
@@ -166,6 +203,8 @@ class DungeonAndDragons:
         self.dragon.update()
         self._check_dragon_left()  # Проверяет добрался ли дракон до левого края экрана
         self._check_dragon_hero_collision()
+        for i in range(3):
+            self.release_fireball()
 
     def _check_dragon_left(self):
         """
@@ -192,12 +231,14 @@ class DungeonAndDragons:
         if self.stats.lives_left > 0:
             # Уменьшение количества жизней на 1
             self.stats.lives_left -= 1
+            self.scoreboard.prep_lives()
 
-            # Очистка кораблей и снарядов
+            # Очистка окна от объектов
             self.fireballs.empty()
             self.snowballs.empty()
             self.dragons.empty()
             self.crystals.empty()
+            self.settings.crystals_stack = 0
 
             # Обновление расположения персонажей учитывая -1 жизнь героя
             self.dragon.center_dragon()
@@ -208,6 +249,10 @@ class DungeonAndDragons:
             sleep(1)
         else:
             self.stats.game_active = False
+
+    def _dragon_hit(self):
+        self.stats.score += 1
+        pass
 
     def _update_screen(self):
         self.screen.fill(self.settings.background_color)
@@ -223,6 +268,9 @@ class DungeonAndDragons:
             snowball.blit_snowball()
 
         self.crystals.draw(self.screen)
+
+        # Вывод инфолрмации о счете
+        self.scoreboard.show_score()
 
         # Кнопка Play отображается только когда игра не активна
         if not self.stats.game_active:

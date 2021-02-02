@@ -1,11 +1,9 @@
 import pygame
-from pygame.sprite import Sprite
 
 
-class Dragon(Sprite):
+class Dragon:
 
     def __init__(self, dragons_game):
-        super(Dragon, self).__init__()
         self.screen = dragons_game.screen
         self.settings = dragons_game.settings
         self.screen_rect = dragons_game.screen.get_rect()

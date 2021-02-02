@@ -13,7 +13,10 @@ class Settings:
         self.fireballs_allowed = 3
 
         self.snowball_speed = 2
-        self.snowball_allowed = 3
+        self.snowball_allowed = 1
+
+        self.crystals_allowed = 3
+        self.crystals_stack = 0
 
         self.dragon_speed = 1.0
         self.dragon_drop_speed = 10
